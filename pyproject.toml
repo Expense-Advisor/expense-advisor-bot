@@ -1,0 +1,14 @@
+[tool.poetry]
+name = "bank-statements-tg-bot"
+version = "0.1.0"
+description = "Telegram bot for uploading and processing bank statements"
+authors = ["You <you@example.com>"]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<4.0"
+aiogram = "^3.4.1"
+aiohttp = "^3.9.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
