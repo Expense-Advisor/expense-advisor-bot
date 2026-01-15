@@ -1,6 +1,7 @@
 import pandas as pd
+from io import BytesIO
 
-from src.modules.financial_intelligence.domain.entites.mcc import MCCHelper
+from src.modules.financial_intelligence.domain.entities.mcc import MCCHelper
 from src.modules.financial_intelligence.domain.interfaces.pipeline_item import PipelineItem
 
 
@@ -14,8 +15,8 @@ class BankStatementIngestor(PipelineItem):
         date | description | amount | category | mcc
     """
 
-    def __init__(self, file_path):
-        self.path = file_path
+    def __init__(self, content: bytes):
+        self.content = content
 
     def run(self, **kwargs) -> pd.DataFrame:
         """
@@ -78,12 +79,13 @@ class BankStatementIngestor(PipelineItem):
         Returns:
             pd.DataFrame: Таблица транзакций с исходными колонками.
         """
-        df_raw = pd.read_excel(self.path, header=None)
+        bytes_io = BytesIO(self.content)
+        df_raw = pd.read_excel(io=bytes_io, header=None)
 
         required = ["дата", "сум", "опис", "катег"]
         header_row = self._find_header_row(df_raw, required_cols=required)
 
-        df = pd.read_excel(self.path, header=header_row)
+        df = pd.read_excel(io=bytes_io, header=header_row)
         df = df.dropna(how="all").reset_index(drop=True)
 
         df = df.loc[:, ~df.columns.astype(str).str.contains("^Unnamed")]

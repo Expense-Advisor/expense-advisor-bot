@@ -13,6 +13,8 @@ from src.modules.financial_intelligence.infrastructure.services.ingestion.bank_s
 from src.modules.financial_intelligence.infrastructure.services.optimization.savings_estimator import \
     SavingsOpportunityEstimator
 
+pd.set_option("display.max_colwidth", None)
+
 
 class FinancialIntelligencePipeline(object):
     """
@@ -28,13 +30,13 @@ class FinancialIntelligencePipeline(object):
         7. Формирование текстового отчёта
 
     Attributes:
-        path (str): Путь к Excel-файлу банковской выписки.
+        content (bytes): Контент excel-файла банковской выписки.
     """
 
-    def __init__(self, path):
-        self.path = path
+    def __init__(self, content: bytes):
+        self.content: bytes = content
 
-        self.bank_statement_loader = BankStatementIngestor(self.path)
+        self.bank_statement_loader = BankStatementIngestor(self.content)
 
         self.smart_category: TransactionCategorizer | None = None
         self.classification_other_operation: OtherTransactionClassifier | None = None
@@ -44,7 +46,7 @@ class FinancialIntelligencePipeline(object):
         self.build_user_profile: UserBehaviorModel | None = None
         self.estimation_savings: SavingsOpportunityEstimator | None = None
 
-    def run(self) -> str:
+    def run(self) -> list[str]:
         """
         Запускает полный анализ банковских транзакций.
 
@@ -52,7 +54,7 @@ class FinancialIntelligencePipeline(object):
         поиск подписок, аномалий, анализ поведения и расчёт экономии.
 
         Returns:
-            str: Сформированный текстовый финансовый отчёт для пользователя.
+            list[str]: Сформированный текстовый финансовый отчёт для пользователя.
         """
         df: pd.DataFrame = self.bank_statement_loader.run()
 
@@ -90,7 +92,7 @@ class FinancialIntelligencePipeline(object):
             anomalies: pd.DataFrame,
             savings: float,
             profile_advice: list[str]
-    ) -> str:
+    ) -> list[str]:
         """
         Формирует итоговый текстовый финансовый отчёт.
 
@@ -104,12 +106,10 @@ class FinancialIntelligencePipeline(object):
         Returns:
             str: Готовый отчёт для вывода пользователю.
         """
-        text: list[str] = []
+        pages: list[str] = []
 
-        # ----------------------------
-        # 1. Куда уходят деньги
-        # ----------------------------
-        text.append("📊 КУДА УХОДЯТ ДЕНЬГИ\n")
+        # Куда уходят деньги
+        block = ["<b>КУДА УХОДЯТ ДЕНЬГИ</b>\n"]
 
         by_cat = (
             df.groupby("final_category")["amount"]
@@ -122,49 +122,53 @@ class FinancialIntelligencePipeline(object):
 
         for cat, value in by_cat.items():
             share = value / total * 100
-            text.append(f"- {cat}: {value:,.0f} ₽ ({share:.1f}%)")
+            block.append(f"- {cat}: {value:,.0f} ₽ ({share:.1f}%)")
 
-        # ----------------------------
-        # 2. Регулярные траты
-        # ----------------------------
-        text.append("\n🔁 ВАШИ РЕГУЛЯРНЫЕ ПЛАТЕЖИ\n")
+        pages.append("\n".join(block))
+
+        # Регулярные платежи
+        block = ["<b>ВАШИ РЕГУЛЯРНЫЕ ПЛАТЕЖИ</b>\n"]
 
         if len(recurring_groups) == 0:
-            text.append("Регулярных платежей не найдено.")
+            block.append("Регулярных платежей не найдено.")
         else:
             for _, row in recurring_groups.sort_values("total").iterrows():
                 avg = abs(row["total"]) / row["count"]
-                text.append(
+                block.append(
                     f"- {row['description']} → {row['count']} раз, "
                     f"≈ {avg:.0f} ₽, всего {abs(row['total']):,.0f} ₽"
                 )
 
-        # ----------------------------
-        # 3. Аномальные операции
-        # ----------------------------
-        text.append("\n⚠️ НЕОБЫЧНЫЕ ТРАТЫ\n")
+        pages.append("\n".join(block))
+
+        # Аномалии
+        block = ["<b>НЕОБЫЧНЫЕ ТРАТЫ</b>\n"]
 
         if len(anomalies) == 0:
-            text.append("Аномальных операций не обнаружено.")
+            block.append("Аномальных операций не обнаружено.")
         else:
             for _, row in anomalies.sort_values("amount").head(10).iterrows():
-                text.append(
-                    f"- {row['date'].date()} | {row['description'][:50]}… → {row['amount']} ₽"
+                desc = str(row["description"])
+                block.append(
+                    f"- {row['date'].date()} | {desc} → {row['amount']} ₽"
                 )
 
-        # ----------------------------
-        # 4. Поведенческий анализ (ML)
-        # ----------------------------
-        text.append("\n🧠 АНАЛИЗ ВАШЕГО ФИНАНСОВОГО ПОВЕДЕНИЯ\n")
+        pages.append("\n".join(block))
+
+        # Анализ финансов
+        block = ["<b>АНАЛИЗ ФИНАНСОВОГО ПОВЕДЕНИЯ</b>\n"]
 
         for line in profile_advice:
-            text.append(f"- {line}")
+            block.append(f"- {line}")
 
-        # ----------------------------
-        # 5. Итог по экономии
-        # ----------------------------
-        text.append("\n💰 ПОТЕНЦИАЛ ЭКОНОМИИ\n")
-        text.append(
-            f"Если оптимизировать выявленные привычки, можно сохранить около {abs(savings):,.0f} ₽ за этот период.")
+        pages.append("\n".join(block))
 
-        return "\n".join(text)
+        # Экономия
+        block = [
+            "<b>ПОТЕНЦИАЛ ЭКОНОМИИ</b>\n",
+            f"Если оптимизировать выявленные привычки, можно сохранить около {abs(savings):,.0f} ₽ за этот период."
+        ]
+
+        pages.append("\n".join(block))
+
+        return pages

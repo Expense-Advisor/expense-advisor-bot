@@ -149,7 +149,7 @@ class RecurringPaymentDetector(PipelineItem):
         groups = (
             df.groupby("merchant_id")
             .agg(
-                description=("description", lambda x: x.iloc[0][:60]),
+                description=("description", lambda x: x.iloc[0]),
                 dates=("date", list),
                 amounts=("amount", list),
                 count=("amount", "count"),
