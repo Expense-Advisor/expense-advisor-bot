@@ -67,35 +67,25 @@ MCC_MAP: dict[str, list[int]] = {
 }
 
 
-class MCCHelper:
-    """
-    Утилиты для работы с MCC-кодами платёжных систем.
-    """
-
+class MCCHelper(object):
     @staticmethod
     def extract_mcc(description: str) -> int | None:
-        """
-        Извлекает MCC-код из описания операции.
-
-        Args:
-            description (str): Текст описания транзакции.
-
-        Returns:
-            Optional[int]: MCC-код или None, если он не найден.
-        """
         m = re.search(r"mcc[:\s]*([0-9]{4})", description.lower())
         if m:
             return int(m.group(1))
         return None
 
     @staticmethod
-    def classify_by_mcc(mcc: int | None) -> str | None:
-        """
-        Определяет категорию расходов по MCC-коду.
+    def classify_by_mcc(mcc: int) -> str | None:
+        if mcc is None:
+            return None
 
-        Args:
-            mcc (Optional[int]): MCC-код операции.
-
-        Returns:
-            Optional[str]: Название категории или None, если не найдено.
-        """
+        for cat, codes in MCC_MAP.items():
+            for code in codes:
+                if isinstance(code, tuple):
+                    if code[0] <= mcc <= code[1]:
+                        return cat
+                else:
+                    if mcc == code:
+                        return cat
+        return None
