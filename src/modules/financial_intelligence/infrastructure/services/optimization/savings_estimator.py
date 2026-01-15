@@ -1,7 +1,7 @@
 import pandas as pd
 
 
-class EstimateSavings(object):
+class SavingsOpportunityEstimator(object):
     """
     Оценщик потенциальной экономии пользователя.
 

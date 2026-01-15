@@ -2,9 +2,9 @@ import numpy as np
 import pandas as pd
 from sentence_transformers import SentenceTransformer
 
-from src.modules.bank_statement_analyzer.domain.entites.category import CATEGORY_PROTOTYPES, FINANCE_KEYWORDS
-from src.modules.bank_statement_analyzer.domain.entites.mcc import MCCHelper
-from src.modules.bank_statement_analyzer.domain.interfaces.pipeline_item import PipelineItem
+from src.modules.financial_intelligence.domain.entites.category import CATEGORY_PROTOTYPES, FINANCE_KEYWORDS
+from src.modules.financial_intelligence.domain.entites.mcc import MCCHelper
+from src.modules.financial_intelligence.domain.interfaces.pipeline_item import PipelineItem
 
 model = SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2")
 
@@ -36,7 +36,7 @@ def embed(texts: str | list[str] | np.ndarray) -> np.ndarray:
     return model.encode(texts, normalize_embeddings=True)
 
 
-class SmartCategory(PipelineItem):
+class TransactionCategorizer(PipelineItem):
     """
     Интеллектуальный классификатор категорий транзакций.
 

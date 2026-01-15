@@ -2,10 +2,10 @@ import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 
-from src.modules.bank_statement_analyzer.domain.interfaces.pipeline_item import PipelineItem
+from src.modules.financial_intelligence.domain.interfaces.pipeline_item import PipelineItem
 
 
-class ClassificationOtherOperation(PipelineItem):
+class OtherTransactionClassifier(PipelineItem):
     """
     ML-классификатор операций категории «Прочие операции».
 

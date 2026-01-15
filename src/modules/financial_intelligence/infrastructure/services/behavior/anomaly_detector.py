@@ -2,10 +2,10 @@ import pandas as pd
 from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import StandardScaler
 
-from src.modules.bank_statement_analyzer.domain.interfaces.pipeline_item import PipelineItem
+from src.modules.financial_intelligence.domain.interfaces.pipeline_item import PipelineItem
 
 
-class AnomaliesSpendingAnalyzer(PipelineItem):
+class SpendingAnomalyDetector(PipelineItem):
     """
     Детектор аномальных трат пользователя.
 

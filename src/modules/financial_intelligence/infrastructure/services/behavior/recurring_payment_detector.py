@@ -5,10 +5,10 @@ import pandas as pd
 from sklearn.cluster import DBSCAN
 from sklearn.preprocessing import StandardScaler
 
-from src.modules.bank_statement_analyzer.domain.interfaces.pipeline_item import PipelineItem
+from src.modules.financial_intelligence.domain.interfaces.pipeline_item import PipelineItem
 
 
-class SearchForRegularExpenses(PipelineItem):
+class RecurringPaymentDetector(PipelineItem):
     """
     Детектор регулярных расходов пользователя.
 

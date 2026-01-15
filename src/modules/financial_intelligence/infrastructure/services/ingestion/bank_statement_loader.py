@@ -1,10 +1,10 @@
 import pandas as pd
 
-from src.modules.bank_statement_analyzer.domain.entites.mcc import MCCHelper
-from src.modules.bank_statement_analyzer.domain.interfaces.pipeline_item import PipelineItem
+from src.modules.financial_intelligence.domain.entites.mcc import MCCHelper
+from src.modules.financial_intelligence.domain.interfaces.pipeline_item import PipelineItem
 
 
-class BankStatementLoader(PipelineItem):
+class BankStatementIngestor(PipelineItem):
     """
     Загрузчик и нормализатор банковских Excel-выписок.
 

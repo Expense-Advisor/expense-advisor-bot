@@ -5,7 +5,7 @@ from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import StandardScaler
 
 
-class BuildUserProfile(object):
+class UserBehaviorModel(object):
     """
     Строитель поведенческой модели пользователя.
 
