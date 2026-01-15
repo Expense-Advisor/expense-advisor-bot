@@ -1,5 +1,5 @@
-from domain.file import BankStatementFile, SUPPORTED_EXTENSIONS
-from infrastructure.backend_client import BackendClient
+from src.domain.file import BankStatementFile, SUPPORTED_EXTENSIONS
+from src.infrastructure.backend_client import BackendClient
 
 class FileProcessingService:
     def __init__(self):

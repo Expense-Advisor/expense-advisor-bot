@@ -1,6 +1,6 @@
 import aiohttp
-from config import settings
-from domain.file import BankStatementFile
+from src.config import settings
+from src.domain.file import BankStatementFile
 
 class BackendClient:
     async def send_file(self, bank_file: BankStatementFile) -> str:
