@@ -1,25 +1,45 @@
 import pandas as pd
 from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import StandardScaler
+
 from src.modules.bank_statement_analyzer.domain.interfaces.pipeline_item import PipelineItem
 
 
 class AnomaliesSpendingAnalyzer(PipelineItem):
+    """
+    Детектор аномальных трат пользователя.
+
+    Использует модель Isolation Forest для выявления операций,
+    которые сильно выбиваются из общего распределения по сумме.
+    Такие операции обычно соответствуют импульсивным, редким
+    или необычно крупным покупкам.
+    """
+
     def __init__(self, df: pd.DataFrame):
         self.df = df
 
     def run(self) -> pd.DataFrame:
+        """
+        Запускает детекцию аномальных транзакций.
+
+        Метод добавляет в таблицу колонку `anomaly`, где:
+            - 1 — операция считается аномальной
+            - 0 — операция находится в пределах нормы
+
+        Returns:
+            pd.DataFrame: DataFrame с добавленной колонкой `anomaly`.
+        """
         return self._detect_anomalies()
 
     def _detect_anomalies(self) -> pd.DataFrame:
         """
-        Detects anomalous transactions using Isolation Forest.
+        Выполняет ML-детекцию аномалий на основе суммы транзакции.
 
-        Args:
-            df: Normalized dataframe.
+        Использует Isolation Forest, который ищет редкие и изолированные
+        точки в распределении сумм операций.
 
         Returns:
-            DataFrame with an 'anomaly' column (1 = anomaly).
+            pd.DataFrame: Таблица транзакций с добавленным бинарным признаком `anomaly`.
         """
         features = self.df[["amount"]].copy()
 

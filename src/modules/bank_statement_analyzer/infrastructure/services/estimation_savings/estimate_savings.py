@@ -1,15 +1,50 @@
+import pandas as pd
+
+
 class EstimateSavings(object):
+    """
+    Оценщик потенциальной экономии пользователя.
+
+    Анализирует:
+        - перерасход в аномальных месяцах
+        - сумму регулярных платежей (подписок)
+
+    и вычисляет, сколько денег пользователь мог бы сохранить,
+    если оптимизировал свои финансовые привычки.
+    """
+
     def __init__(self, recurring_groups, profile):
         self.recurring_groups = recurring_groups
         self.profile = profile
 
     def estimate(self, **kwargs) -> float:
+        """
+        Запускает расчёт потенциальной экономии
+
+        Returns:
+            float: Оценка возможной экономии за анализируемый период
+        """
         return self._estimate_savings(self.recurring_groups, self.profile)
 
-    def _estimate_savings(self, recurring_groups, profile) -> float:
+    def _estimate_savings(
+            self,
+            recurring_groups: pd.DataFrame,
+            profile: pd.DataFrame
+    ) -> float:
         """
-        Estimates potential savings based on personal spending behavior.
-        Uses user's own baseline instead of hardcoded categories.
+        Выполняет расчёт экономии на основе финансового поведения пользователя.
+
+        Алгоритм:
+            1. Вычисляет нормальный (базовый) уровень расходов пользователя
+            2. Считает перерасход в аномальных месяцах
+            3. Добавляет потенциальную экономию от отключения подписок
+
+        Args:
+            recurring_groups (pd.DataFrame): Таблица регулярных платежей.
+            profile (pd.DataFrame): Помесячный профиль пользователя.
+
+        Returns:
+            float: Итоговая оценка возможной экономии.
         """
         savings = 0.0
 

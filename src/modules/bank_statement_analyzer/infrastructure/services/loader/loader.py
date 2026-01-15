@@ -5,25 +5,47 @@ from src.modules.bank_statement_analyzer.domain.interfaces.pipeline_item import 
 
 
 class BankStatementLoader(PipelineItem):
+    """
+    Загрузчик и нормализатор банковских Excel-выписок.
+
+    Преобразует «грязкие» файлы банков в стандартную таблицу транзакций
+    со следующей схемой:
+
+        date | description | amount | category | mcc
+    """
+
     def __init__(self, file_path):
         self.path = file_path
 
     def run(self, **kwargs) -> pd.DataFrame:
+        """
+        Загружает и нормализует банковскую выписку
+
+        Returns:
+            pd.DataFrame: Нормализованная таблица транзакций
+        """
         df = self._load_bank_xlsx()
         df = self._normalize_columns(df)
         return df
 
     def _find_header_row(self, df_raw: pd.DataFrame, required_cols: list[str], max_scan: int = 200) -> int:
         """
-        Searches for the header row in messy bank Excel files.
+        Находит строку с заголовками в грязном Excel-файле.
+
+        Банковские выписки часто содержат перед таблицей служебные строки
+        (название клиента, период и т.д.). Этот метод ищет строку,
+        в которой присутствуют ключевые слова заголовков.
 
         Args:
-            df_raw: Raw DataFrame without headers.
-            required_cols: Column name keywords to search for.
-            max_scan: Max rows to scan.
+            df_raw (pd.DataFrame): DataFrame без заголовков.
+            required_cols (List[str]): Ключевые слова для поиска колонок.
+            max_scan (int): Максимальное количество строк для анализа.
 
         Returns:
-            Index of header row.
+            int: Индекс строки, содержащей заголовки таблицы.
+
+        Raises:
+            ValueError: Если строка заголовков не найдена.
         """
         best_i, best_score = 0, -1
 
@@ -51,13 +73,10 @@ class BankStatementLoader(PipelineItem):
 
     def _load_bank_xlsx(self) -> pd.DataFrame:
         """
-        Loads messy bank Excel file and extracts the real transaction table.
-
-        Args:
-            path: Path to Excel file.
+        Загружает Excel-файл банка и извлекает таблицу транзакций.
 
         Returns:
-            DataFrame with bank transactions.
+            pd.DataFrame: Таблица транзакций с исходными колонками.
         """
         df_raw = pd.read_excel(self.path, header=None)
 
@@ -73,8 +92,16 @@ class BankStatementLoader(PipelineItem):
 
     def _normalize_columns(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        Converts bank columns to standard schema:
-        date, description, amount, category
+        Приводит колонки банка к стандартной схеме.
+
+        Итоговая схема:
+            date | description | amount | category | mcc
+
+        Args:
+            df (pd.DataFrame): Исходная таблица банка.
+
+        Returns:
+            pd.DataFrame: Нормализованная таблица транзакций.
         """
         detected: dict[str, list] = {
             "date": [],

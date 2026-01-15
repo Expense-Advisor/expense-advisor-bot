@@ -6,16 +6,43 @@ from sklearn.preprocessing import StandardScaler
 
 
 class BuildUserProfile(object):
+    """
+    Строитель поведенческой модели пользователя.
+
+    Анализирует помесячные расходы по категориям и выявляет
+    месяцы, в которых поведение пользователя значительно
+    отклоняется от его обычного финансового стиля.
+    """
+
     def __init__(self, df: pd.DataFrame):
         self.df = df
 
     def build(self) -> tuple[Any, list[str]]:
+        """
+        Строит профиль финансового поведения пользователя
+        и генерирует текстовые объяснения аномальных месяцев.
+
+        Returns:
+            tuple[pd.DataFrame, list[str]]:
+                - DataFrame с помесячным профилем и признаком аномальности
+                - список текстовых рекомендаций
+        """
         profile, _, _ = self.build_user_profile()
         return profile, self.explain_monthly_anomalies(profile)
 
-    def build_user_profile(self):
+    def build_user_profile(self) -> tuple[pd.DataFrame, IsolationForest, StandardScaler]:
         """
-        Learns user's normal monthly spending behavior.
+        Обучает ML-модель нормального финансового поведения пользователя.
+
+        Метод агрегирует расходы по месяцам и категориям, после чего
+        использует Isolation Forest для выявления месяцев,
+        которые выбиваются из общего шаблона.
+
+        Returns:
+            tuple[pd.DataFrame, IsolationForest, StandardScaler]:
+                - pivot-таблица (месяц × категория) с признаком `is_abnormal_month`
+                - обученная модель IsolationForest
+                - использованный StandardScaler
         """
         self.df["month"] = self.df["date"].dt.to_period("M")
 
@@ -39,6 +66,20 @@ class BuildUserProfile(object):
         return pivot, model, scaler
 
     def explain_monthly_anomalies(self, profile: pd.DataFrame) -> list[str]:
+        """
+        Формирует текстовые объяснения для аномальных месяцев.
+
+        Сравнивает расходы в аномальных месяцах с нормальным
+        базовым уровнем пользователя и выделяет категории,
+        где перерасход был максимальным.
+
+        Args:
+            profile (pd.DataFrame): Помесячный профиль пользователя,
+                полученный из `build_user_profile`.
+
+        Returns:
+            list[str]: Список текстовых рекомендаций и пояснений.
+        """
         advice: list[str] = []
 
         normal = profile[profile["is_abnormal_month"] == False]

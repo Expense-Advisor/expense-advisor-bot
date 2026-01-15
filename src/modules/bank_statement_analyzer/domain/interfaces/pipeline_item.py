@@ -1,11 +1,24 @@
-from typing import Protocol, Union
+from typing import Protocol
 
 import pandas as pd
 
 
 class PipelineItem(Protocol):
-    def __init__(self, df: pd.DataFrame):
-        ...
+    """
+    Контракт одного шага ML-пайплайна.
 
-    def run(self, **kwargs) -> Union[pd.DataFrame, float]:
+    Любой элемент пайплайна обязан:
+        - принимать DataFrame с транзакциями
+        - возвращать либо DataFrame, либо числовой результат
+    """
+
+    def run(self) -> pd.DataFrame:
+        """
+        Выполняет логику шага.
+
+        Returns:
+            Union[pd.DataFrame, float]:
+                - обновлённый DataFrame
+                - или числовой результат (например, сумма экономии).
+        """
         ...

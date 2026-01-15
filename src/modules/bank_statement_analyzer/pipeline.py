@@ -15,6 +15,22 @@ from src.modules.bank_statement_analyzer.infrastructure.services.regular_expense
 
 
 class AnalyzerPipeline(object):
+    """
+    Главный ML-пайплайн анализа банковских транзакций.
+
+    Выполняет полный цикл финансового анализа:
+        1. Загрузка и очистка банковской выписки
+        2. Определение реальных категорий трат (банк + MCC + NLP)
+        3. Поиск регулярных платежей (подписки, связь, сервисы)
+        4. Выявление аномальных транзакций
+        5. Построение модели финансовых привычек пользователя
+        6. Расчёт потенциальной экономии
+        7. Формирование текстового отчёта
+
+    Attributes:
+        path (str): Путь к Excel-файлу банковской выписки.
+    """
+
     def __init__(self, path):
         self.path = path
 
@@ -29,6 +45,15 @@ class AnalyzerPipeline(object):
         self.estimation_savings: EstimateSavings | None = None
 
     def run(self) -> str:
+        """
+        Запускает полный анализ банковских транзакций.
+
+        Выполняет все этапы ML-пайплайна: загрузку данных, категоризацию,
+        поиск подписок, аномалий, анализ поведения и расчёт экономии.
+
+        Returns:
+            str: Сформированный текстовый финансовый отчёт для пользователя.
+        """
         df: pd.DataFrame = self.bank_statement_loader.run()
 
         self.smart_category = SmartCategory(df)
@@ -66,6 +91,19 @@ class AnalyzerPipeline(object):
             savings: float,
             profile_advice: list[str]
     ) -> str:
+        """
+        Формирует итоговый текстовый финансовый отчёт.
+
+        Args:
+            df (pd.DataFrame): Полная таблица транзакций с финальными категориями.
+            recurring_groups (pd.DataFrame): Обнаруженные регулярные платежи.
+            anomalies (pd.DataFrame): Таблица аномальных операций.
+            savings (float): Оценка потенциальной экономии.
+            profile_advice (list[str]): Рекомендации на основе поведенческой модели.
+
+        Returns:
+            str: Готовый отчёт для вывода пользователю.
+        """
         text: list[str] = []
 
         # ----------------------------
