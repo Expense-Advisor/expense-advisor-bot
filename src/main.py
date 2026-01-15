@@ -19,7 +19,6 @@ async def start(message: Message):
         "Пожалуйста, загрузите файл с выгрузкой банковских операций.\n"
         "Поддерживаемые форматы: .xlsx или .csv"
     )
-    print(1)
 
 
 @dp.message(F.content_type == ContentType.DOCUMENT)
