@@ -38,8 +38,7 @@ async def handle_document(message: Message):
 
     try:
         result_text: list[str] = await service.process_file(
-            filename=document.file_name,
-            file_content=file_bytes.read()
+            filename=document.file_name, file_content=file_bytes.read()
         )
     except Exception as e:
         print(e)
@@ -48,14 +47,12 @@ async def handle_document(message: Message):
 
     for text in result_text:
         await message.answer(text, parse_mode=ParseMode.HTML)
-    await message.answer(
-        "Вы можете загрузить новый файл с банковской выгрузкой"
-    )
+    await message.answer("Вы можете загрузить новый файл с банковской выгрузкой")
 
 
 async def main():
     await dp.start_polling(bot)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     asyncio.run(main())

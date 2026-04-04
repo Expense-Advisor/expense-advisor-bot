@@ -1,17 +1,26 @@
 import pandas as pd
 
-from src.modules.financial_intelligence.infrastructure.services.behavior.anomaly_detector import SpendingAnomalyDetector
-from src.modules.financial_intelligence.infrastructure.services.behavior.recurring_payment_detector import \
-    RecurringPaymentDetector
-from src.modules.financial_intelligence.infrastructure.services.behavior.user_behavior_model import UserBehaviorModel
-from src.modules.financial_intelligence.infrastructure.services.categorization.semantic_classifier import \
-    TransactionCategorizer
-from src.modules.financial_intelligence.infrastructure.services.categorization.transaction_classifier import \
-    OtherTransactionClassifier
-from src.modules.financial_intelligence.infrastructure.services.ingestion.bank_statement_loader import \
-    BankStatementIngestor
-from src.modules.financial_intelligence.infrastructure.services.optimization.savings_estimator import \
-    SavingsOpportunityEstimator
+from src.modules.financial_intelligence.infrastructure.services.behavior.anomaly_detector import (
+    SpendingAnomalyDetector,
+)
+from src.modules.financial_intelligence.infrastructure.services.behavior.recurring_payment_detector import (
+    RecurringPaymentDetector,
+)
+from src.modules.financial_intelligence.infrastructure.services.behavior.user_behavior_model import (
+    UserBehaviorModel,
+)
+from src.modules.financial_intelligence.infrastructure.services.categorization.semantic_classifier import (
+    TransactionCategorizer,
+)
+from src.modules.financial_intelligence.infrastructure.services.categorization.transaction_classifier import (
+    OtherTransactionClassifier,
+)
+from src.modules.financial_intelligence.infrastructure.services.ingestion.bank_statement_loader import (
+    BankStatementIngestor,
+)
+from src.modules.financial_intelligence.infrastructure.services.optimization.savings_estimator import (
+    SavingsOpportunityEstimator,
+)
 
 pd.set_option("display.max_colwidth", None)
 
@@ -58,40 +67,42 @@ class FinancialIntelligencePipeline(object):
         """
         df: pd.DataFrame = self.bank_statement_loader.run()
 
+        print("Transaction categorizer")
         self.smart_category = TransactionCategorizer(df)
         df: pd.DataFrame = self.smart_category.run()
 
+        print("Other transaction classifier")
         self.classification_other_operation = OtherTransactionClassifier(df)
         df: pd.DataFrame = self.classification_other_operation.run()
 
+        print("Recurring payment detector")
         self.search_for_regular_expenses = RecurringPaymentDetector(df)
         recurring_groups: pd.DataFrame = self.search_for_regular_expenses.run()
 
+        print("spending anomaly detector")
         self.anomalies_spending = SpendingAnomalyDetector(df)
         df: pd.DataFrame = self.anomalies_spending.run()
         anomalies = df[df["anomaly"] == 1]
 
+        print("User behavior model")
         self.build_user_profile = UserBehaviorModel(df)
         profile, profile_advice = self.build_user_profile.build()
 
+        print("Savings opportunity estimator")
         self.estimation_savings = SavingsOpportunityEstimator(recurring_groups, profile)
         savings = self.estimation_savings.estimate()
 
         return self._format_user_report(
-            df,
-            recurring_groups,
-            anomalies,
-            savings,
-            profile_advice
+            df, recurring_groups, anomalies, savings, profile_advice
         )
 
     def _format_user_report(
-            self,
-            df: pd.DataFrame,
-            recurring_groups: pd.DataFrame,
-            anomalies: pd.DataFrame,
-            savings: float,
-            profile_advice: list[str]
+        self,
+        df: pd.DataFrame,
+        recurring_groups: pd.DataFrame,
+        anomalies: pd.DataFrame,
+        savings: float,
+        profile_advice: list[str],
     ) -> list[str]:
         """
         Формирует итоговый текстовый финансовый отчёт.
@@ -147,11 +158,15 @@ class FinancialIntelligencePipeline(object):
         if len(anomalies) == 0:
             block.append("Аномальных операций не обнаружено.")
         else:
-            for _, row in anomalies.sort_values("amount").head(10).iterrows():
-                desc = str(row["description"])
-                block.append(
-                    f"- {row['date'].date()} | {desc} → {row['amount']} ₽"
+            for _, row in (
+                anomalies.sort_values(
+                    ["anomaly_score", "amount"], ascending=[False, True]
                 )
+                .head(10)
+                .iterrows()
+            ):
+                desc = str(row["description"])
+                block.append(f"- {row['date'].date()} | {desc} → {row['amount']} ₽")
 
         pages.append("\n".join(block))
 
@@ -166,7 +181,7 @@ class FinancialIntelligencePipeline(object):
         # Экономия
         block = [
             "<b>ПОТЕНЦИАЛ ЭКОНОМИИ</b>\n",
-            f"Если оптимизировать выявленные привычки, можно сохранить около {abs(savings):,.0f} ₽ за этот период."
+            f"Если оптимизировать выявленные привычки, можно сохранить около {abs(savings):,.0f} ₽ за этот период.",
         ]
 
         pages.append("\n".join(block))

@@ -27,9 +27,7 @@ class SavingsOpportunityEstimator(object):
         return self._estimate_savings(self.recurring_groups, self.profile)
 
     def _estimate_savings(
-            self,
-            recurring_groups: pd.DataFrame,
-            profile: pd.DataFrame
+        self, recurring_groups: pd.DataFrame, profile: pd.DataFrame
     ) -> float:
         """
         Выполняет расчёт экономии на основе финансового поведения пользователя.
@@ -56,7 +54,6 @@ class SavingsOpportunityEstimator(object):
 
         baseline = normal.drop(columns=["is_abnormal_month"]).mean()
 
-        # 1️⃣ Перерасход по месяцам
         for month, row in abnormal.iterrows():
             diff = row.drop("is_abnormal_month") - baseline
 
@@ -65,7 +62,6 @@ class SavingsOpportunityEstimator(object):
                     # считаем, что 50% перерасхода можно оптимизировать
                     savings += value * 0.5
 
-        # 2️⃣ Регулярные платежи (подписки и сервисы)
         if len(recurring_groups) > 0:
             # считаем, что 60% подписок можно отключить
             savings += abs(recurring_groups["total"].sum()) * 0.6

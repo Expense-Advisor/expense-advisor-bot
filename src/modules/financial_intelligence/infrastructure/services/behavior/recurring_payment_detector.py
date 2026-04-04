@@ -5,7 +5,9 @@ import pandas as pd
 from sklearn.cluster import DBSCAN
 from sklearn.preprocessing import StandardScaler
 
-from src.modules.financial_intelligence.domain.interfaces.pipeline_item import PipelineItem
+from src.modules.financial_intelligence.domain.interfaces.pipeline_item import (
+    PipelineItem,
+)
 
 
 class RecurringPaymentDetector(PipelineItem):
@@ -43,10 +45,7 @@ class RecurringPaymentDetector(PipelineItem):
         Returns:
             pd.DataFrame: Только реальные списания пользователя
         """
-        return df[
-            (~df["is_money"]) &
-            (df["amount"] < 0)
-            ].copy()
+        return df[(~df["is_money"]) & (df["amount"] < 0)].copy()
 
     def _normalize_description(self, text: str) -> str:
         """
@@ -67,13 +66,8 @@ class RecurringPaymentDetector(PipelineItem):
 
         text = text.lower()
 
-        # убрать цифры, номера транзакций, телефоны
         text = re.sub(r"\d+", " ", text)
-
-        # убрать мусор
         text = re.sub(r"[^\w\s]", " ", text)
-
-        # убрать лишние пробелы
         text = re.sub(r"\s+", " ", text).strip()
 
         return text
@@ -96,7 +90,9 @@ class RecurringPaymentDetector(PipelineItem):
         mcc = str(row["mcc"]) if not pd.isna(row["mcc"]) else ""
         return f"{base}|{mcc}"
 
-    def _make_time_features(self, dates: list[pd.Timestamp], amounts: list[float]) -> np.ndarray:
+    def _make_time_features(
+        self, dates: list[pd.Timestamp], amounts: list[float]
+    ) -> np.ndarray:
         """
         Строит числовые признаки регулярности платежей.
 
@@ -118,12 +114,9 @@ class RecurringPaymentDetector(PipelineItem):
 
         deltas = np.diff(days)
 
-        return np.array([
-            np.mean(deltas),
-            np.std(deltas),
-            np.mean(amounts),
-            np.std(amounts)
-        ])
+        return np.array(
+            [np.mean(deltas), np.std(deltas), np.mean(amounts), np.std(amounts)]
+        )
 
     def _detect_recurring_payments(self, df: pd.DataFrame) -> pd.DataFrame:
         """
@@ -153,7 +146,7 @@ class RecurringPaymentDetector(PipelineItem):
                 dates=("date", list),
                 amounts=("amount", list),
                 count=("amount", "count"),
-                total=("amount", "sum")
+                total=("amount", "sum"),
             )
             .reset_index()
         )
@@ -163,11 +156,12 @@ class RecurringPaymentDetector(PipelineItem):
         if len(groups) == 0:
             return groups
 
-        # строим ML-вектора
-        features = np.vstack([
-            self._make_time_features(row["dates"], row["amounts"])
-            for _, row in groups.iterrows()
-        ])
+        features = np.vstack(
+            [
+                self._make_time_features(row["dates"], row["amounts"])
+                for _, row in groups.iterrows()
+            ]
+        )
 
         scaler = StandardScaler()
         X = scaler.fit_transform(features)
@@ -185,21 +179,18 @@ class RecurringPaymentDetector(PipelineItem):
             months = dates.to_period("M")
 
             n_months = months.nunique()
-            n_payments = len(dates)
 
-            # сколько месяцев в покрываемом интервале
             span = (months.max() - months.min()).n + 1
 
             coverage = n_months / span
 
-            # стабильность суммы (но мягко)
             mean_amt = np.mean(row["amounts"])
             std_amt = np.std(row["amounts"])
 
             return (
-                    n_months >= 3 and  # минимум 3 месяца
-                    coverage >= 0.5 and  # платили хотя бы в половине месяцев
-                    abs(std_amt / mean_amt) < 0.7  # цена может расти
+                n_months >= 3  # минимум 3 месяца
+                and coverage >= 0.5  # платили хотя бы в половине месяцев
+                and abs(std_amt / mean_amt) < 0.7  # цена может расти
             )
 
         groups["is_recurring"] = groups.apply(is_recurring, axis=1)
