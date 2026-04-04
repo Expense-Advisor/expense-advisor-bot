@@ -1,3 +1,6 @@
+import re
+from html import escape
+
 import pandas as pd
 
 from src.modules.financial_intelligence.infrastructure.services.behavior.anomaly_detector import (
@@ -104,23 +107,10 @@ class FinancialIntelligencePipeline(object):
         savings: float,
         profile_advice: list[str],
     ) -> list[str]:
-        """
-        Формирует итоговый текстовый финансовый отчёт.
-
-        Args:
-            df (pd.DataFrame): Полная таблица транзакций с финальными категориями.
-            recurring_groups (pd.DataFrame): Обнаруженные регулярные платежи.
-            anomalies (pd.DataFrame): Таблица аномальных операций.
-            savings (float): Оценка потенциальной экономии.
-            profile_advice (list[str]): Рекомендации на основе поведенческой модели.
-
-        Returns:
-            str: Готовый отчёт для вывода пользователю.
-        """
         pages: list[str] = []
 
-        # Куда уходят деньги
-        block = ["<b>КУДА УХОДЯТ ДЕНЬГИ</b>\n"]
+        # 1. Куда уходят деньги
+        block = ["<b>КУДА УХОДЯТ ДЕНЬГИ</b>", ""]
 
         by_cat = (
             df.groupby("final_category")["amount"]
@@ -131,59 +121,143 @@ class FinancialIntelligencePipeline(object):
 
         total = by_cat.sum()
 
-        for cat, value in by_cat.items():
-            share = value / total * 100
-            block.append(f"- {cat}: {value:,.0f} ₽ ({share:.1f}%)")
+        for i, (cat, value) in enumerate(by_cat.items(), start=1):
+            share = value / total * 100 if total else 0
+            block.append(
+                f"{i}. {escape(str(cat))} — {self._format_money(value)} ₽ ({share:.1f}%)"
+            )
 
         pages.append("\n".join(block))
 
-        # Регулярные платежи
-        block = ["<b>ВАШИ РЕГУЛЯРНЫЕ ПЛАТЕЖИ</b>\n"]
+        # 2. Регулярные платежи
+        block = ["<b>ВАШИ РЕГУЛЯРНЫЕ ПЛАТЕЖИ</b>", ""]
 
         if len(recurring_groups) == 0:
             block.append("Регулярных платежей не найдено.")
         else:
-            for _, row in recurring_groups.sort_values("total").iterrows():
+            for i, (_, row) in enumerate(
+                recurring_groups.sort_values("total").iterrows(),
+                start=1,
+            ):
+                desc = self._simplify_description(row["description"])
                 avg = abs(row["total"]) / row["count"]
+
+                count = int(row["count"])
                 block.append(
-                    f"- {row['description']} → {row['count']} раз, "
-                    f"≈ {avg:.0f} ₽, всего {abs(row['total']):,.0f} ₽"
+                    f"{i}. {desc} — "
+                    f"{count} платеж., "
+                    f"средний чек {self._format_money(avg)} ₽, "
+                    f"всего {self._format_money(abs(row['total']))} ₽"
                 )
 
         pages.append("\n".join(block))
 
-        # Аномалии
-        block = ["<b>НЕОБЫЧНЫЕ ТРАТЫ</b>\n"]
+        # 3. Необычные траты
+        block = ["<b>НЕОБЫЧНЫЕ ТРАТЫ</b>", ""]
 
         if len(anomalies) == 0:
             block.append("Аномальных операций не обнаружено.")
         else:
-            for _, row in (
+            for i, (_, row) in enumerate(
                 anomalies.sort_values(
-                    ["anomaly_score", "amount"], ascending=[False, True]
-                )
-                .head(10)
-                .iterrows()
+                    ["anomaly_score", "amount"],
+                    ascending=[False, True],
+                ).iterrows(),
+                start=1,
             ):
-                desc = str(row["description"])
-                block.append(f"- {row['date'].date()} | {desc} → {row['amount']} ₽")
+                desc = self._simplify_description(row["description"])
+                block.append(
+                    f"{i}. {row['date'].date()} — {desc} — "
+                    f"{self._format_money(abs(row['amount']))} ₽"
+                )
 
         pages.append("\n".join(block))
 
-        # Анализ финансов
-        block = ["<b>АНАЛИЗ ФИНАНСОВОГО ПОВЕДЕНИЯ</b>\n"]
+        # 4. Анализ финансового поведения
+        block = ["<b>АНАЛИЗ ФИНАНСОВОГО ПОВЕДЕНИЯ</b>", ""]
 
-        for line in profile_advice:
-            block.append(f"- {line}")
+        if not profile_advice:
+            block.append("Выраженных отклонений от обычного поведения не найдено.")
+        else:
+            for i, line in enumerate(profile_advice, start=1):
+                cleaned = self._clean_spaces(line)
+
+                m = re.search(
+                    r"В\s+([0-9]{4}-[0-9]{2})\s+траты по категории\s+'(.+?)'\s+были выше.*?на\s+([0-9]+)\s*₽",
+                    cleaned,
+                )
+
+                if m:
+                    month, category, value = m.groups()
+                    month_label = self._format_month_label(month)
+                    block.append(
+                        f"{i}. {month_label} • {escape(category)} • "
+                        f"+{self._format_money(float(value))} ₽ к обычному уровню"
+                    )
+                else:
+                    block.append(f"{i}. {escape(cleaned)}")
 
         pages.append("\n".join(block))
 
-        # Экономия
+        # 5. Потенциал экономии
         block = [
-            "<b>ПОТЕНЦИАЛ ЭКОНОМИИ</b>\n",
-            f"Если оптимизировать выявленные привычки, можно сохранить около {abs(savings):,.0f} ₽ за этот период.",
+            "<b>ПОТЕНЦИАЛ ЭКОНОМИИ</b>",
+            "",
+            f"Оценка за период: {self._format_money(abs(savings))} ₽",
         ]
 
         pages.append("\n".join(block))
 
         return pages
+
+    @staticmethod
+    def _format_money(value: float, digits: int = 0) -> str:
+        value = float(value)
+        formatted = f"{value:,.{digits}f}".replace(",", " ")
+        if digits == 0:
+            formatted = formatted.split(".")[0]
+        return formatted
+
+    @staticmethod
+    def _clean_spaces(text: str) -> str:
+        return re.sub(r"\s+", " ", str(text)).strip()
+
+    def _simplify_description(self, description: str) -> str:
+        """
+        Упрощает длинное описание операции, не теряя данные.
+        Было:
+        Операция по карте: ..., дата создания транзакции: ..., место совершения операции: ..., MCC: ...
+        Стало:
+        Карта ... • дата ... • место ... • MCC ...
+        """
+        text = self._clean_spaces(description)
+
+        replacements = [
+            ("Операция по карте: ", "Карта "),
+            (", дата создания транзакции: ", " • дата "),
+            (", место совершения операции: ", " • место "),
+            (", MCC: ", " • MCC "),
+            ("Категория: ", ""),
+            (" Период проживания: ", " • период проживания: "),
+            (" в банк ", " • банк "),
+        ]
+
+        for old, new in replacements:
+            text = text.replace(old, new)
+
+        text = re.sub(r"\s*•\s*", " • ", text)
+        text = self._clean_spaces(text)
+
+        return escape(text)
+
+    @staticmethod
+    def _format_month_label(raw_month) -> str:
+        """
+        Преобразует 2025-08 -> 08.2025
+        """
+        text = str(raw_month)
+        m = re.match(r"(\d{4})-(\d{2})", text)
+        if m:
+            year, month = m.groups()
+            return f"{month}.{year}"
+        return text

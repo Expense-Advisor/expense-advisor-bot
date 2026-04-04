@@ -1,15 +1,70 @@
 import asyncio
+
 from aiogram import Bot, Dispatcher, F
-from aiogram.filters import CommandStart
-from aiogram.types import Message, Document
+from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.enums import ContentType, ParseMode
+from aiogram.filters import CommandStart
+from aiogram.types import Document, Message
 
 from config import settings
 from application.services import FileProcessingService
 
-bot = Bot(token=settings.BOT_TOKEN)
+MAX_TELEGRAM_MESSAGE_LEN = 4000
+
+session = AiohttpSession(proxy=settings.proxy_url)
+bot = Bot(session=session, token=settings.BOT_TOKEN)
 dp = Dispatcher()
 service = FileProcessingService()
+
+
+async def send_html_in_chunks(
+    message: Message,
+    text: str,
+    max_len: int = MAX_TELEGRAM_MESSAGE_LEN,
+) -> None:
+    """
+    Отправляет длинный HTML-текст частями, чтобы не превысить лимит Telegram.
+    Делит текст по строкам, а если строка слишком длинная — дополнительно режет её.
+    """
+    if len(text) <= max_len:
+        await message.answer(text, parse_mode=ParseMode.HTML)
+        return
+
+    parts: list[str] = []
+    current_part: list[str] = []
+    current_len = 0
+
+    for line in text.splitlines(keepends=True):
+        line_len = len(line)
+
+        if line_len > max_len:
+            if current_part:
+                parts.append("".join(current_part).rstrip())
+                current_part = []
+                current_len = 0
+
+            start = 0
+            while start < line_len:
+                chunk = line[start : start + max_len]
+                parts.append(chunk.rstrip())
+                start += max_len
+
+            continue
+
+        if current_len + line_len > max_len:
+            parts.append("".join(current_part).rstrip())
+            current_part = [line]
+            current_len = line_len
+        else:
+            current_part.append(line)
+            current_len += line_len
+
+    if current_part:
+        parts.append("".join(current_part).rstrip())
+
+    for part in parts:
+        if part:
+            await message.answer(part, parse_mode=ParseMode.HTML)
 
 
 @dp.message(CommandStart())
@@ -46,7 +101,8 @@ async def handle_document(message: Message):
         return
 
     for text in result_text:
-        await message.answer(text, parse_mode=ParseMode.HTML)
+        await send_html_in_chunks(message, text)
+
     await message.answer("Вы можете загрузить новый файл с банковской выгрузкой")
 
 

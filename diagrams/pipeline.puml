@@ -1,0 +1,49 @@
+@startuml
+title Финансовый ML-пайплайн
+
+start
+
+:Загрузка выписки;
+:Очистка и парсинг (дата, сумма, описание, MCC);
+
+:Категоризация;
+if (is_money?) then (Да)
+  :Финансовые операции;
+else
+  if (Категория банка?) then (Да)
+    :Категория банка;
+  else
+    if (MCC?) then (Да)
+      :MCC категория;
+    else
+      if (Семантика ок?) then (Да)
+        :Semantic категория;
+      else
+        :Прочие;
+      endif
+    endif
+  endif
+endif
+
+:ML-классификатор;
+if (Данных достаточно?) then (Да)
+  :LogReg (TF-IDF + MCC + направление);
+  if (confidence ≥ 0.6?) then (Да)
+    :Обновить категорию;
+  endif
+endif
+
+:Регулярные платежи;
+:DBSCAN + правила;
+
+:Аномалии;
+:robust_z + IsolationForest;
+
+:Поведенческая модель;
+:Помесячный baseline + MAD;
+
+:Оценка экономии;
+
+:Отчёт;
+stop
+@enduml
